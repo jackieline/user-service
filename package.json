@@ -1,0 +1,27 @@
+{
+  "name": "oober-user-service",
+  "version": "1.0.0",
+  "description": "user service",
+  "main": "index.js",
+  "scripts": {
+    "start": "nodemon server/index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jackieline/user-service.git"
+  },
+  "author": "Jacqueline Leung",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/jackieline/user-service/issues"
+  },
+  "homepage": "https://github.com/jackieline/user-service#readme",
+  "dependencies": {
+    "axios": "^0.17.1",
+    "casual": "^1.5.19",
+    "express": "^4.16.2",
+    "faker": "^4.1.0",
+    "mysql": "^2.15.0",
+    "nodemon": "^1.12.7"
+  }
+}

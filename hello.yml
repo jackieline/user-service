@@ -1,0 +1,27 @@
+config:
+  target: 'http://127.0.0.1:3000'
+  http: 
+    pool: 10
+  phases:
+    - duration: 25
+      arrivalRate: 5
+  processor: './my-functions.js'
+
+scenarios:
+    - name: 'ride request event'
+      flow:
+        - function: 'generateRandomData'  
+        - post:
+            url: '/api/v1/userBooking'
+            json:
+              sessionId: '{{ sessionId }}'
+              userId: '{{ userId }}'
+              rideEvent: '{{ rideEvent }}'
+              rideType: '{{ rideType }}'
+              requestTimestamp: '{{ requestTimestamp }}'
+              origin: '{{ origin }}'
+              destination: '{{ destination }}'
+              driverId: '{{ driverId }}'
+              price: '{{ price }}'
+              surgePricingRate: '{{ surgePricingRate }}'
+        - log: 'sent a request to /booking with {{ sessionId }}, {{ userId }}, {{ rideEvent }}, {{ rideType }}, {{ requestTimestamp }}, {{ origin }}, {{ destination }}, {{ driverId }}, {{ price }}, {{ surgePricingRate }}'    
