@@ -48,7 +48,18 @@ const cancel = (eventId, callback) => {
 	});
 }
 
+const updateDriver = (eventId, driverId, callback) => {
+	connection.query(`update history set driverId = ${driverId} where eventId = ${eventId}`, (err, results) => {
+		if (err) {
+			console.log(err);
+		} else {
+			console.log(results);
+		}
+	});
+}
+
 // module.exports.userCheck = userCheck;
 module.exports.rideEstimate = rideEstimate;
 module.exports.rideRequest = rideRequest;
 module.exports.cancel  = cancel; 
+module.exports.updateDriver = updateDriver;
