@@ -1,6 +1,11 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const db = require('../database-mysql');
+const redis = require('redis');
+const promise = require('bluebird');
+promise.promisifyAll(redis.RedisClient.prototype);
+promise.promisifyAll(redis.Multi.prototype);
+const client = redis.createClient();
 
 let app = express();
 
@@ -29,17 +34,34 @@ console.log('this is the body', body)
 	db.rideRequest(body.sessionId, body.userId, body.rideEvent, body.rideType, body.requestTimestamp, body.origin, body.destination, body.driverId, body.price, body.surgePricingRate, (err, results) => {
 		if (err) {
 			console.log(err);
+			//get eventId
+		}
+	});
+	client.incr('count', (err, reply) => {
+		if (err) {
+			console.log(err);
 		}
 	});
 	res.sendStatus(201);
 });
 
-app.get('api/v1/userBooking', function({body}, res) {
-	//response from booking queue
-	  //send update info to user
-	  //update DB with price
+app.get('api/v1/userBooking', ({body}, res) => {
+	//check cache for eventId to see if driver has been matched yet
+	client.getAsync(body.eventId).then(data => {
+		if (data !== 'nil') {
+			res.end(JSON.stringify(data));
+		} else {
+  		res.sendStatus(200);
+		}
+	})
+});
 
-  res.sendStatus(200);
+app.put('api/v1/ride/booked', function({body}, res) {
+	//response from booking service
+	db.updateDriver(body.eventId, body.driverId, function (err, data) {
+		client.setAsync(body.eventId, JSON.stringify(body), 'EX', 7200);
+		res.end();
+	});
 });
 
 app.get('/', function({body}, res) {
@@ -47,9 +69,13 @@ app.get('/', function({body}, res) {
   res.sendStatus(200);
 });
 
-app.put('api/v1/ride', function(req, res) {
-
-  res.sendStatus(200);
+app.put('api/v1/ride/done', function(req, res) {
+	client.decr('count', (err, reply) => {
+		if (err) {
+			console.log(err);
+		}
+	});
+  res.end();
 });
 
 app.put('api/v1/cancel/:eventId', function(req, res) {
