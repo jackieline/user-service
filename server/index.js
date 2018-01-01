@@ -6,8 +6,7 @@ const promise = require('bluebird');
 promise.promisifyAll(redis.RedisClient.prototype);
 promise.promisifyAll(redis.Multi.prototype);
 const client = redis.createClient();
-const AWS = require('aws-sdk');
-AWS.config.update({region: 'us-west-1'});
+const sqs = require('../aws/sqs.js');
 
 let app = express();
 
@@ -22,10 +21,10 @@ app.post('/api/v1/userEstimate', function({body}, res) {
 	//wait for response from pricing
 	//throw info from pricing and body into db
 	console.log('userEstimate', body)
-	
+
 	db.rideEstimate(body.sessionId, body.userId, body.rideEvent, body.rideType, body.requestTimestamp, body.origin, body.destination, body.price, body.surgePricingRate, (err, results) => {
 		if (err) {
-			console.log(err);
+			res.send(err);
 		}
 	});
 	let data = [body.price, body.surgePricingRate];
@@ -37,76 +36,41 @@ console.log('this is the body', body)
 	let eventId;
 	db.rideRequest(body.sessionId, body.userId, body.rideEvent, body.rideType, body.requestTimestamp, body.origin, body.destination, body.driverId, body.price, body.surgePricingRate, (err, results) => {
 		if (err) {
-			console.log(err);
+			res.send(err);
 		} else {
 			//get eventId
-			db.eventId( (err, res) => {
+			db.eventId( (err, id) => {
 				if (err) {
-					console.log(err);
+					res.send(err);
 				} else {
+					console.log('this is the eventId!!!!!', id[0]['LAST_INSERT_ID()']);
+					eventId = id[0]['LAST_INSERT_ID()'];
 					db.userInfo(body.userId, (err, user) => {
 						if (err) {
-							console.log(err);
+							res.send(err);
 						} else {
-							let userRes = JSON.parse(user);
-							eventId = res;
-							let sqs = new AWS.SQS({apiVersion: '2012-11-05'});
-							let params = {
-								DelaySeconds: 0,
-								MessageAttributes: {
-									"EventId": {
-										DataType: "Number",
-										StringValue: `${eventId}`
-									},
-									"userFirstName": {
-										DataType: "String",
-										StringValue: `${userRes.firstName}`
-									},
-									"userPhoneNumber": {
-										DataType: "String",
-										StringValue: `${userRes.phoneNumber}`
-									},
-									"userRating": {
-										DataType: "Number",
-										StringValue: `${userRes.userRating}`
-									},
-									"rideType": {
-										DataType: "String",
-										StringValue: `${body.rideEvent}`
-									},
-									"origin": {
-										DataType: "String",
-										StringValue: `${body.origin}`
-									},
-									"destination": {
-										DataType: "String",
-										StringValue: `${body.destination}`
-									}
-								},
-								MessageBody: "Current Ride Requests",
-								QueueUrl: "https://sqs.us-west-1.amazonaws.com/603629433953/Oober_Service-Booking_Queue"
-							};
-							sqs.sendMessage(params, (err, data) => {
+							console.log('this is what the userInfo response looks like!!', user[0].firstName);
+							let userRes = user[0];
+							sqs.message(eventId, userRes.firstName, userRes.phoneNumber, userRes.userRating, body.rideType, body.origin, body.destination, (err, result) => {
 								if (err) {
-									console.log("Error", err);
-									res.sendStatus(400);
+									res.send(err);
 								} else {
-									console.log("Success", data.MessageId);
-									res.end(data.MessageId);
+									client.incr('count', (err, reply) => {
+									  if (err) {
+										  res.send(err);
+									  } else {
+									  	console.log('this is after redis!!!')
+								  		res.json(reply);
+								  	}	
+								  });
 								}
-							});
+							})
 						}
 					})
 				}
 			});
 		}
 	});
-	client.incr('count', (err, reply) => {
-		if (err) {
-			console.log(err);
-		}
-	});
-	res.sendStatus(201);
 });
 
 app.get('api/v1/userBooking', ({body}, res) => {
