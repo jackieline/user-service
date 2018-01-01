@@ -4,7 +4,7 @@ config:
     pool: 10
   phases:
     - duration: 25
-      arrivalRate: 5
+      arrivalRate: 3
   processor: './my-functions.js'
 
 scenarios:
