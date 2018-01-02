@@ -8,4 +8,4 @@ const fareEstimate = (origin, destination, cb) => {
 }
 
 
-export.modules.fareEstimate = fareEstimate;
+module.exports.fareEstimate = fareEstimate;
