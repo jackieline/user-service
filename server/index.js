@@ -1,13 +1,10 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const db = require('../database-mysql');
-const redis = require('redis');
 const promise = require('bluebird');
-promise.promisifyAll(redis.RedisClient.prototype);
-promise.promisifyAll(redis.Multi.prototype);
-const client = redis.createClient();
 const sqs = require('../aws/sqs.js');
 const pricing = require('../ext-services/pricingService.js');
+const redis = require('../cache-redis');
 
 let app = express();
 
@@ -60,7 +57,7 @@ console.log('this is the body', body)
 								if (err) {
 									res.send(err);
 								} else {
-									client.incr('count', (err, reply) => {
+									redis.addActiveRide( (err, reply) => {
 									  if (err) {
 										  res.send(err);
 									  } else {
@@ -79,13 +76,13 @@ console.log('this is the body', body)
 
 app.get('api/v1/userBooking', ({body}, res) => {
 	//check cache for eventId to see if driver has been matched yet
-	client.getAsync(body.eventId).then(data => {
-		if (data !== 'nil') {
-			res.end(JSON.stringify(data));
-		} else {
+	redis.getBookedRide(body.eventId, (err, data) => {
+		if (err) {
   		res.sendStatus(200);
+		} else {
+			res.end(data);
 		}
-	})
+	});
 });
 
 app.put('api/v1/ride/booked', function({body}, res) {
@@ -94,7 +91,7 @@ app.put('api/v1/ride/booked', function({body}, res) {
 		if (err) {
 			res.sendStatus(400);
 		} else {
-		client.setAsync(body.eventId, JSON.stringify(body), 'EX', 7200);
+		redis.setBookedRide(body);
 		res.end();
 		};
 	});
@@ -106,7 +103,7 @@ app.get('/', function({body}, res) {
 });
 
 app.put('api/v1/ride/done', function(req, res) {
-	client.decr('count', (err, reply) => {
+	redis.minusActiveRide((err, reply) => {
 		if (err) {
 			res.send(err);
 		} else {
