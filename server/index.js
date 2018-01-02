@@ -7,6 +7,7 @@ promise.promisifyAll(redis.RedisClient.prototype);
 promise.promisifyAll(redis.Multi.prototype);
 const client = redis.createClient();
 const sqs = require('../aws/sqs.js');
+const pricing = require('../ext-services/pricingService.js');
 
 let app = express();
 
@@ -21,14 +22,20 @@ app.post('/api/v1/userEstimate', function({body}, res) {
 	//wait for response from pricing
 	//throw info from pricing and body into db
 	console.log('userEstimate', body)
-
-	db.rideEstimate(body.sessionId, body.userId, body.rideEvent, body.rideType, body.requestTimestamp, body.origin, body.destination, body.price, body.surgePricingRate, (err, results) => {
+	pricing.fareEstimate(body.origin, body.destination, (err, results) => {
 		if (err) {
 			res.send(err);
+		} else {
+			let price = results[0];
+			let surgePricingRate = results[1];
+			db.rideEstimate(body.sessionId, body.userId, body.rideEvent, body.rideType, body.requestTimestamp, body.origin, body.destination, price, surgePricingRate, (err, results) => {
+				if (err) {
+					res.send(err);
+				}
+			});
+			res.json(results);
 		}
-	});
-	let data = [body.price, body.surgePricingRate];
-	res.json(data);
+	})
 });
 
 app.post('/api/v1/userBooking', function({body}, res) {
@@ -43,13 +50,11 @@ console.log('this is the body', body)
 				if (err) {
 					res.send(err);
 				} else {
-					console.log('this is the eventId!!!!!', id[0]['LAST_INSERT_ID()']);
 					eventId = id[0]['LAST_INSERT_ID()'];
 					db.userInfo(body.userId, (err, user) => {
 						if (err) {
 							res.send(err);
 						} else {
-							console.log('this is what the userInfo response looks like!!', user[0].firstName);
 							let userRes = user[0];
 							sqs.message(eventId, userRes.firstName, userRes.phoneNumber, userRes.userRating, body.rideType, body.origin, body.destination, (err, result) => {
 								if (err) {
@@ -59,7 +64,6 @@ console.log('this is the body', body)
 									  if (err) {
 										  res.send(err);
 									  } else {
-									  	console.log('this is after redis!!!')
 								  		res.json(reply);
 								  	}	
 								  });
@@ -104,10 +108,11 @@ app.get('/', function({body}, res) {
 app.put('api/v1/ride/done', function(req, res) {
 	client.decr('count', (err, reply) => {
 		if (err) {
-			console.log(err);
+			res.send(err);
+		} else {
+			res.send(reply);
 		}
 	});
-  res.end();
 });
 
 app.put('api/v1/cancel/:eventId', function(req, res) {
