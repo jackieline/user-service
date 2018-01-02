@@ -74,9 +74,11 @@ console.log('this is the body', body)
 	});
 });
 
-app.get('api/v1/userBooking', ({body}, res) => {
+
+app.get('/api/v1/userBooking?:eventId', (req, res) => {
 	//check cache for eventId to see if driver has been matched yet
-	redis.getBookedRide(body.eventId, (err, data) => {
+	// console.log('does this reach userBooking get endpoint?', req.query.eventId)
+	redis.getBookedRide(req.query.eventId, (err, data) => {
 		if (err) {
   		res.sendStatus(200);
 		} else {
@@ -85,8 +87,9 @@ app.get('api/v1/userBooking', ({body}, res) => {
 	});
 });
 
-app.put('api/v1/ride/booked', function({body}, res) {
+app.post('/api/v1/ride/booked', function({body}, res) {
 	//response from booking service
+	// console.log('hello from bookings!', body.eventId, body.driverId)
 	db.updateDriver(body.eventId, body.driverId, function (err, data) {
 		if (err) {
 			res.sendStatus(400);
@@ -97,25 +100,28 @@ app.put('api/v1/ride/booked', function({body}, res) {
 	});
 });
 
-app.get('/', function({body}, res) {
+app.get('/', function(req, res) {
+	console.log(req);
 	
   res.sendStatus(200);
 });
 
-app.put('api/v1/ride/done', function(req, res) {
+app.patch('/api/v1/ride/done', function(req, res) {
+	// console.log('this is the put route for done rides');
 	redis.minusActiveRide((err, reply) => {
 		if (err) {
 			res.send(err);
 		} else {
-			res.send(reply);
+			res.end();
 		}
 	});
 });
 
-app.put('api/v1/cancel/:eventId', function(req, res) {
+app.patch('/api/v1/cancel?:eventId', function(req, res) {
 	//patch to db
 	//call db function
-	let eventId = req.eventId;
+	console.log('this is the params cancel call', req.query.eventId);
+	let eventId = req.query.eventId;
 	db.cancel(eventId, (err, results) => {
 		if (err) {
 			res.json(err);
