@@ -42,3 +42,4 @@ config.js
 client/dist/bundle.js
 history.csv
 history.txt
+*.pem
