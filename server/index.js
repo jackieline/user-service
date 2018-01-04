@@ -135,8 +135,8 @@ app.patch('/api/v1/cancel?:eventId', function(req, res) {
 });
 
 
-app.listen(22, function() {
-	console.log(' ʕ´• ᴥ •`ʔ listening on port 22! ʕ´• ᴥ •`ʔ ')
+app.listen(3000, function() {
+	console.log(' ʕ´• ᴥ •`ʔ listening on port 3000! ʕ´• ᴥ •`ʔ ')
 });
 
 //working booking route to AWS SQS
