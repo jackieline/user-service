@@ -58,19 +58,20 @@ const updateDriver = (eventId, driverId, callback) => {
 	});
 }
 
-const eventId = callback => {
-	connection.query('SELECT LAST_INSERT_ID()', (err, result) => {
-		if (err) {
-			callback(err, null);
-		} else {
-			callback(null, result);
-		}
-	});
-}
+//optimized by adding to the cache
+// const eventId = callback => {
+// 	connection.query('SELECT LAST_INSERT_ID()', (err, result) => {
+// 		if (err) {
+// 			callback(err, null);
+// 		} else {
+// 			callback(null, result);
+// 		}
+// 	});
+// }
 
 module.exports.userInfo = userInfo;
 module.exports.rideEstimate = rideEstimate;
 module.exports.rideRequest = rideRequest;
 module.exports.cancel  = cancel; 
 module.exports.updateDriver = updateDriver;
-module.exports.eventId = eventId;
+// module.exports.eventId = eventId;
