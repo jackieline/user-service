@@ -36,43 +36,41 @@ app.post('/api/v1/userEstimate', function({body}, res) {
 });
 
 app.post('/api/v1/userBooking', function({body}, res) {
-console.log('this is the body', body)
 	let eventId;
-	db.rideRequest(body.sessionId, body.userId, body.rideEvent, body.rideType, body.requestTimestamp, body.origin, body.destination, body.driverId, body.price, body.surgePricingRate, (err, results) => {
+	redis.getEventId( (err, event) => {
 		if (err) {
 			res.send(err);
 		} else {
-			//get eventId
-			db.eventId( (err, id) => {
+			eventId = event;
+			db.userInfo(body.userId, (err, user) => {
 				if (err) {
 					res.send(err);
 				} else {
-					eventId = id[0]['LAST_INSERT_ID()'];
-					db.userInfo(body.userId, (err, user) => {
+					let userRes = user[0];
+					sqs.message(eventId, userRes.firstName, userRes.phoneNumber, userRes.userRating, body.rideType, body.origin, body.destination, (err, result) => {
 						if (err) {
 							res.send(err);
 						} else {
-							let userRes = user[0];
-							sqs.message(eventId, userRes.firstName, userRes.phoneNumber, userRes.userRating, body.rideType, body.origin, body.destination, (err, result) => {
+							redis.addActiveRide( (err, reply) => {
+								if (err) {
+									res.send(err);
+								}
+							});
+							db.rideRequest(body.sessionId, body.userId, body.rideEvent, body.rideType, body.requestTimestamp, body.origin, body.destination, body.driverId, body.price, body.surgePricingRate, (err, data) => {
 								if (err) {
 									res.send(err);
 								} else {
-									redis.addActiveRide( (err, reply) => {
-									  if (err) {
-										  res.send(err);
-									  } else {
-								  		res.json(reply);
-								  	}	
-								  });
+									res.send(data);
 								}
-							})
+							});
 						}
-					})
+					});
 				}
 			});
 		}
 	});
-});
+});	
+
 
 
 app.get('/api/v1/userBooking?:eventId', (req, res) => {
@@ -95,6 +93,11 @@ app.post('/api/v1/ride/booked', function({body}, res) {
 			res.sendStatus(400);
 		} else {
 		redis.setBookedRide(body);
+		redis.incEventId( (err, incremented) => {
+			if (err) {
+				res.send(err);
+			}
+		});
 		res.end();
 		};
 	});
@@ -132,6 +135,46 @@ app.patch('/api/v1/cancel?:eventId', function(req, res) {
 });
 
 
-app.listen(3000, function() {
-	console.log(' ʕ´• ᴥ •`ʔ listening on port 3000! ʕ´• ᴥ •`ʔ ')
+app.listen(22, function() {
+	console.log(' ʕ´• ᴥ •`ʔ listening on port 22! ʕ´• ᴥ •`ʔ ')
 });
+
+//working booking route to AWS SQS
+// app.post('/api/v1/userBooking', function({body}, res) {
+// console.log('this is the body', body)
+// 	let eventId;
+// 	db.rideRequest(body.sessionId, body.userId, body.rideEvent, body.rideType, body.requestTimestamp, body.origin, body.destination, body.driverId, body.price, body.surgePricingRate, (err, results) => {
+// 		if (err) {
+// 			res.send(err);
+// 		} else {
+// 			//get eventId
+// 			db.eventId( (err, id) => {
+// 				if (err) {
+// 					res.send(err);
+// 				} else {
+// 					eventId = id[0]['LAST_INSERT_ID()'];
+// 					db.userInfo(body.userId, (err, user) => {
+// 						if (err) {
+// 							res.send(err);
+// 						} else {
+// 							let userRes = user[0];
+// 							sqs.message(eventId, userRes.firstName, userRes.phoneNumber, userRes.userRating, body.rideType, body.origin, body.destination, (err, result) => {
+// 								if (err) {
+// 									res.send(err);
+// 								} else {
+// 									redis.addActiveRide( (err, reply) => {
+// 									  if (err) {
+// 										  res.send(err);
+// 									  } else {
+// 								  		res.json(reply);
+// 								  	}	
+// 								  });
+// 								}
+// 							})
+// 						}
+// 					})
+// 				}
+// 			});
+// 		}
+// 	});
+// });
